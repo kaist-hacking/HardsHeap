@@ -1,0 +1,92 @@
+diff --git libfreeguard.cpp libfreeguard.cpp
+index d385ede..74bd8a3 100644
+--- libfreeguard.cpp
++++ libfreeguard.cpp
+@@ -136,6 +136,7 @@ extern "C" {
+ 	void * xxmalloc(size_t);
+ 	void * xxcalloc(size_t, size_t);
+ 	void * xxrealloc(void *, size_t);
++      size_t xxmalloc_usable_size(void *);
+ 
+   void * xxvalloc(size_t);
+   void * xxaligned_alloc(size_t, size_t);
+@@ -149,6 +150,7 @@ extern "C" {
+ 	void * malloc(size_t) __attribute__ ((weak, alias("xxmalloc")));
+ 	void * calloc(size_t, size_t) __attribute__ ((weak, alias("xxcalloc")));
+ 	void * realloc(void *, size_t) __attribute__ ((weak, alias("xxrealloc")));
++      size_t malloc_usable_size(void *) __attribute__ ((weak, alias("xxmalloc_usable_size")));
+ 
+   void * valloc(size_t) __attribute__ ((weak, alias("xxvalloc")));
+   void * aligned_alloc(size_t, size_t) __attribute__ ((weak,
+@@ -167,7 +169,7 @@ __attribute__((destructor)) void finalizer() {
+ void heapinitialize() {
+ 	if(heapInitStatus == E_HEAP_INIT_NOT) {
+ 		heapInitStatus = E_HEAP_INIT_WORKING;
+-    SRAND(time(NULL));
++    SRAND(getSecureSeed());
+ 		BibopHeap::getInstance().initialize();
+ 		heapInitStatus = E_HEAP_INIT_DONE;
+ 		// The following function will invoke dlopen and will call malloc in the end.
+@@ -263,6 +265,21 @@ void * xxrealloc(void * ptr, size_t sz) {
+ 		return newObject;
+ }
+ 
++size_t xxmalloc_usable_size(void * ptr) {
++    if(ptr == NULL || heapInitStatus != E_HEAP_INIT_DONE) {
++          return 0;
++    }
++
++    if(BibopHeap::getInstance().isSmallObject(ptr)) {
++        return BibopHeap::getInstance().getObjectSize(ptr);
++    } else if(BigHeap::getInstance().isLargeObject(ptr)) {
++        return BigHeap::getInstance().getObjectSize(ptr);
++    } else {
++        PRERR("invalid malloc_usable_size on address %p", ptr);
++        return 0;
++    }
++}
++
+ 
+ void * xxalloca(size_t size) {
+     PRERR("%s CALLED", __FUNCTION__);
+diff --git xdefines.hh xdefines.hh
+index 8d339a8..5876f09 100644
+--- xdefines.hh
++++ xdefines.hh
+@@ -28,6 +28,7 @@
+ #include <stdint.h>
+ #include <ucontext.h>
+ #include <assert.h>
++#include <fcntl.h>
+ 
+ #include "slist.h"
+ #include "dlist.h"
+@@ -236,4 +237,15 @@ public:
+ #endif
+ };
+ 
++INLINE int getSecureSeed() {
++  int fd = open("/dev/urandom", O_RDONLY);
++  assert(fd != -1);
++
++  int seed = 0;
++  ssize_t nread = read(fd, &seed, sizeof(seed));
++  assert(nread == sizeof(seed));
++  close(fd);
++  return seed;
++}
++
+ #endif
+diff --git xthread.hh xthread.hh
+index 9515591..9ea061e 100644
+--- xthread.hh
++++ xthread.hh
+@@ -106,7 +106,7 @@ class xthread {
+ 
+ 	// This function is only called in the current thread before the real thread function 
+ 	void initializeCurrentThread(thread_t * thread) {
+-		SRAND(time(NULL));
++    SRAND(getSecureSeed());
+ 		thread->tid = syscall(__NR_gettid);
+ 		#ifndef CUSTOMIZED_STACK
+ 		setThreadIndex(thread->index);

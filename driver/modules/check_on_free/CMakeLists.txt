@@ -1,0 +1,7 @@
+add_executable(check_on_free_child child.c)
+target_link_libraries(check_on_free_child child)
+set_target_properties(check_on_free_child PROPERTIES OUTPUT_NAME child)
+
+add_executable(check_on_free_parent parent.cpp)
+target_link_libraries(check_on_free_parent parent)
+set_target_properties(check_on_free_parent PROPERTIES OUTPUT_NAME parent)

@@ -1,0 +1,8 @@
+add_subdirectory(example)
+add_subdirectory(adjacent)
+add_subdirectory(archeap)
+add_subdirectory(check_on_free)
+add_subdirectory(uninitialized)
+add_subdirectory(reclaim)
+add_subdirectory(sizecheck)
+add_subdirectory(spray)

@@ -1,0 +1,100 @@
+diff --git include/slimguard.h include/slimguard.h
+index d63f1c7..c8fd9a1 100644
+--- include/slimguard.h
++++ include/slimguard.h
+@@ -63,10 +63,12 @@ void   xxfree(void *ptr);
+ void * xxrealloc(void *ptr, size_t size);
+ void * xxmemalign(size_t alignment, size_t size);
+ void * xxcalloc(size_t nmemb, size_t size);
++size_t xxmalloc_usable_size(void *ptr);
+ 
+ void* slimguard_malloc(size_t sz);
+ void  slimguard_free(void *ptr);
+ void* slimguard_realloc(void *ptr, size_t sz);
+ void* slimguard_memalign(size_t alignment, size_t sz);
++size_t slimguard_malloc_usable_size(void *ptr);
+ 
+ #endif /* SLIMGUARD_H */
+diff --git src/gnuwrapper.cpp src/gnuwrapper.cpp
+index 8b3b758..2766b65 100644
+--- src/gnuwrapper.cpp
++++ src/gnuwrapper.cpp
+@@ -24,6 +24,7 @@
+ #define CUSTOM_FREE(x)       CUSTOM_PREFIX(free)(x)
+ #define CUSTOM_REALLOC(x,y)  CUSTOM_PREFIX(realloc)(x,y)
+ #define CUSTOM_MEMALIGN(x,y) CUSTOM_PREFIX(memalign)(x,y)
++#define CUSTOM_MALLOC_USABLE_SIZE(x) CUSTOM_PREFIX(malloc_usable_size)(x)
+ 
+ 
+ extern "C" {
+@@ -32,6 +33,9 @@ extern "C" {
+   void CUSTOM_FREE(void *);
+   void * CUSTOM_REALLOC(void *, size_t);
+   void * CUSTOM_MEMALIGN(size_t, size_t);
++  size_t CUSTOM_MALLOC_USABLE_SIZE(void *);
++
++  size_t malloc_usable_size(void *);
+ 
+   static void my_init_hook (void);
+ 
+diff --git src/slimguard.c src/slimguard.c
+index 1109bcd..64f78ea 100644
+--- src/slimguard.c
++++ src/slimguard.c
+@@ -93,7 +93,8 @@ void init_bibop() {
+ #endif
+ 
+     for (int i = 0; i < INDEX; i++) {
+-        Class[i].start = NULL;
++	if (Class[i].start != NULL)
++	    Class[i].start = NULL;
+     }
+ 
+     STATE = init;
+@@ -528,6 +529,25 @@ void* xxmemalign(size_t alignment, size_t size) {
+     }
+ }
+ 
++size_t xxmalloc_usable_size(void *ptr) {
++    uint8_t index = 255;
++
++    if (ptr == NULL)
++        return 0;
++
++    index = find_sz_cls(ptr);
++
++    if (index == 255) {
++        return get_large_object_size(ptr);
++    }
++
++#ifdef USE_CANARY
++    return Class[index].size - 1;
++#else
++    return Class[index].size;
++#endif
++}
++
+ /* Only used for tests, with LD_PRELOAD and malloc_hooks calloc calls are
+  * automatically translated to malloc calls */
+ void * xxcalloc(size_t nmemb, size_t size) {
+@@ -558,3 +578,10 @@ void* slimguard_memalign(size_t alignment, size_t size) {
+   return xxmemalign(alignment, size);
+ }
+ 
++size_t slimguard_malloc_usable_size(void *ptr) {
++  return xxmalloc_usable_size(ptr);
++}
++
++size_t malloc_usable_size(void *ptr) {
++  return slimguard_malloc_usable_size(ptr);
++}
+diff --git test/CMakeLists.txt test/CMakeLists.txt
+index f45d6ba..e8a7b72 100644
+--- test/CMakeLists.txt
++++ test/CMakeLists.txt
+@@ -83,3 +83,5 @@ add_test(malloc-test malloc-test)
+ add_test(mimalloc-test mimalloc-test)
+ add_test(calloc calloc)
+ add_test(realloc realloc)
++
++target_link_libraries(mimalloc-test PUBLIC pthread)

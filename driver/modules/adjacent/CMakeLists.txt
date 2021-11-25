@@ -1,0 +1,7 @@
+add_executable(adjacent_child child.c)
+target_link_libraries(adjacent_child child)
+set_target_properties(adjacent_child PROPERTIES OUTPUT_NAME child)
+
+add_executable(adjacent_parent parent.cpp)
+target_link_libraries(adjacent_parent parent)
+set_target_properties(adjacent_parent PROPERTIES OUTPUT_NAME parent)
