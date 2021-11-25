@@ -8,7 +8,7 @@ $ docker run -it hardsheap /bin/bash
 ```
 
 ## How to use
-Please check our [artifact](https://github.com/kaist-hacking/hardsheap-artifact).
+Please check our [artifact](/artifact).
 
 ## Trophies
 - https://github.com/UTSASRG/Guarder/issues/1
