@@ -1,0 +1,33 @@
+name: Build and run everything
+on:
+  push:
+  pull_request:
+jobs:
+  build-all:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Installing deps
+        run: |
+          sudo apt install -y -qq --no-install-recommends autoconf automake autogen build-essential ca-certificates
+          sudo apt install -y -qq --no-install-recommends clang cmake libboost-system-dev libboost-filesystem-dev 
+          sudo apt install -y -qq --no-install-recommends libtool git wget python3 python3-pip ltrace
+          pip3 install scipy
+      - name: Build everything
+        run: ./build.sh ; cd artifact; ./build.sh
+      - name: Remove the readme
+        run: cd artifact; rm -f secure_allocators/README.md
+      - name: Run everything
+        run : |
+          cd artifact
+          ./run.py  -r $(pwd)/../ -o output -a DieHarder-6cf204ec&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a ffmalloc-9e1e5825&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a FreeGuard-bfdf6d9a&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a Guarder-9e85978a&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a hardened_malloc-5&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a isoalloc-a683f427&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a MarkUs-4c75ffd5&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a mimalloc-secure-1.7.0&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a scudo-11.0.0&& rm -rf output
+          ./run.py  -r $(pwd)/../ -o output -a SlimGuard-237d842a&& rm -rf output
